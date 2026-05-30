@@ -4043,6 +4043,69 @@ python -m base64 -e <<< "sample string"
 python -m base64 -d <<< "dGhpcyBpcyBlbmNvZGVkCg=="
 ```
 
+###### Download Suno songs with Playwright
+
+```python
+# Dependencies: pip install playwright && playwright install chromium
+from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    context = browser.new_context(storage_state="suno_auth.json")
+    page = context.new_page()
+    page.goto("https://suno.com/me")
+
+    # On first run: log in manually to save the session
+    if "login" in page.url:
+        page.fill("input[type='email']", "your@email.com")
+        page.fill("input[type='password']", "your_password")
+        page.click("button:has-text('Log in')")
+        page.wait_for_url("https://suno.com/me")
+        context.storage_state(path="suno_auth.json")
+
+    # Navigate to a song page, extract audio URL, then download with requests
+    browser.close()
+```
+
+###### Generate Suno songs via local Docker API
+
+```bash
+# Start local Suno API (https://github.com/gcui-art/suno-api)
+docker compose up
+
+# Generate a song
+curl -X POST http://localhost:8000/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "A calm piano piece", "make_instrumental": true}'
+```
+
+###### Rename Suno MP3 files (title_N.mp3 → title (Take N).mp3)
+
+```python
+import os, re
+
+folder = "/path/to/suno/music"
+dry_run = True  # Set to False to actually rename
+
+for file in os.listdir(folder):
+    if not file.endswith(".mp3"):
+        continue
+    match = re.match(r"^(.+?)_(\d+)\.mp3$", file)
+    if not match:
+        continue
+    title, index = match.group(1).strip(), match.group(2)
+    new_name = f"{title} (Take {index}).mp3"
+    src, dst = os.path.join(folder, file), os.path.join(folder, new_name)
+    if os.path.exists(dst):
+        print(f"COLLISION — skipped: {new_name}")
+        continue
+    if dry_run:
+        print(f"DRY RUN: '{file}' -> '{new_name}'")
+    else:
+        os.rename(src, dst)
+        print(f"Renamed: '{file}' -> '{new_name}'")
+```
+
 ##### Tool: [awk](http://www.grymoire.com/Unix/Awk.html)
 
 ###### Search for matching lines
