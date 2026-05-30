@@ -4043,6 +4043,78 @@ python -m base64 -e <<< "sample string"
 python -m base64 -d <<< "dGhpcyBpcyBlbmNvZGVkCg=="
 ```
 
+###### Download Suno songs with Playwright
+
+> **Note:** Uses unofficial browser automation. May conflict with Suno's Terms of Service — use for personal/educational purposes only.
+
+```python
+# Dependencies: pip install playwright && playwright install chromium
+from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    # Persists login session across runs; run headless=False on first use
+    context = browser.new_context(storage_state="suno_auth.json")
+    page = context.new_page()
+    page.goto("https://suno.com/me")
+
+    # First run only: fill credentials to save the session cookie
+    if "login" in page.url:
+        page.fill("input[type='email']", "your@email.com")
+        page.fill("input[type='password']", "your_password")
+        page.click("button:has-text('Log in')")
+        page.wait_for_url("https://suno.com/me")
+        context.storage_state(path="suno_auth.json")
+
+    # Navigate to a song page, extract audio URL, then download with requests
+    browser.close()
+```
+
+###### Generate Suno songs via local Docker API
+
+> **Note:** Requires [gcui-art/suno-api](https://github.com/gcui-art/suno-api) — an unofficial reverse-engineered wrapper.
+
+```bash
+# Clone the repo, add Suno credentials to .env, then start the container
+docker compose up
+
+# Generate a song via the local API
+curl -X POST http://localhost:8000/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "A calm piano piece", "make_instrumental": true}'
+```
+
+###### Rename Suno MP3 files (title_N.mp3 → title (Take N).mp3)
+
+Renames files like `SongTitle_1.mp3` to `SongTitle (Take 1).mp3`. Uses a regex to match only the trailing numeric index, so song titles containing underscores are handled correctly. Set `dry_run = False` to apply changes.
+
+```python
+import os
+import re
+
+folder = "C:/Users/You/Music/Suno"
+dry_run = True
+
+for file in os.listdir(folder):
+    if not file.endswith(".mp3"):
+        continue
+    match = re.match(r"^(.+?)_(\d+)\.mp3$", file)
+    if not match:
+        print(f"SKIP (no match): {file}")
+        continue
+    title, index = match.group(1).strip(), match.group(2)
+    new_name = f"{title} (Take {index}).mp3"
+    src, dst = os.path.join(folder, file), os.path.join(folder, new_name)
+    if os.path.exists(dst):
+        print(f"COLLISION — skipped: {new_name}")
+        continue
+    if dry_run:
+        print(f"DRY RUN: '{file}' -> '{new_name}'")
+    else:
+        os.rename(src, dst)
+        print(f"Renamed: '{file}' -> '{new_name}'")
+```
+
 ##### Tool: [awk](http://www.grymoire.com/Unix/Awk.html)
 
 ###### Search for matching lines
